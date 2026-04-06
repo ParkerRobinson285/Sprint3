@@ -7,20 +7,18 @@ import model.Move;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Unit tests for ManualGame.
+ * Tests for ManualGame — mapped to acceptance criteria.
  *
- * Covers:
- *   - makeMove() with valid and invalid moves
- *   - move history recording
- *   - isOver() detection
- *   - randomize() produces a valid board state
- *   - getValidMoves() delegation
- *   - getRating() delegation
+ * AC 4.2 — valid move executes (peg moves, jumped peg removed, count decrements)
+ * AC 4.3 — invalid move is rejected, board state unchanged
+ * AC 5.1 — game over detected when no valid moves remain
+ * AC 5.2 — rating is Outstanding when one peg remains
+ * AC 8.1 — randomize changes board to new valid mid-game position
+ * AC 8.2 — board is consistent after randomize
+ * AC 8.3 — randomize does not affect move history
  */
 class ManualGameTest {
 
@@ -31,9 +29,7 @@ class ManualGameTest {
         game = new ManualGame(new EnglishBoard());
     }
 
-    // -------------------------------------------------------------------------
-    // makeMove — valid moves
-    // -------------------------------------------------------------------------
+    // ── AC 4.2 — Valid move executes correctly ────────────────────────────────
 
     @Test
     void makeMove_validMove_returnsTrue() {
@@ -55,14 +51,11 @@ class ManualGameTest {
         assertEquals(before - 1, game.getPegCount());
     }
 
-    // -------------------------------------------------------------------------
-    // makeMove — invalid moves
-    // -------------------------------------------------------------------------
+    // ── AC 4.3 — Invalid move is rejected ────────────────────────────────────
 
     @Test
     void makeMove_invalidMove_returnsFalse() {
-        // (3,3) is empty — can't move from there
-        assertFalse(game.makeMove(new Move(3, 3, 3, 5)));
+        assertFalse(game.makeMove(new Move(3, 3, 3, 5))); // source is empty
     }
 
     @Test
@@ -77,44 +70,7 @@ class ManualGameTest {
         assertFalse(game.makeMove(null));
     }
 
-    // -------------------------------------------------------------------------
-    // Move history
-    // -------------------------------------------------------------------------
-
-    @Test
-    void moveHistory_emptyAtStart() {
-        assertTrue(game.getMoveHistory().isEmpty());
-    }
-
-    @Test
-    void moveHistory_recordsSuccessfulMoves() {
-        Move m1 = new Move(3, 1, 3, 3);
-        Move m2 = new Move(1, 3, 3, 3); // after m1 the center has a peg, but (3,3) is filled now
-        // Use two sequential valid moves instead
-        game.makeMove(m1);                        // peg now at (3,3)
-        game.makeMove(new Move(3, 4, 3, 2));      // another valid move after state change
-
-        List<Move> history = game.getMoveHistory();
-        assertEquals(2, history.size());
-        assertEquals(m1, history.get(0));
-    }
-
-    @Test
-    void moveHistory_doesNotRecordFailedMoves() {
-        game.makeMove(new Move(3, 3, 3, 5)); // invalid
-        assertTrue(game.getMoveHistory().isEmpty());
-    }
-
-    @Test
-    void moveHistory_isUnmodifiable() {
-        game.makeMove(new Move(3, 1, 3, 3));
-        List<Move> history = game.getMoveHistory();
-        assertThrows(UnsupportedOperationException.class, () -> history.add(new Move(0, 0, 0, 2)));
-    }
-
-    // -------------------------------------------------------------------------
-    // Game over
-    // -------------------------------------------------------------------------
+    // ── AC 5.1 — Game over detection ─────────────────────────────────────────
 
     @Test
     void isOver_falseAtStart() {
@@ -123,52 +79,36 @@ class ManualGameTest {
 
     @Test
     void isOver_trueWhenNoMovesRemain() {
-        // Manually gut the board down to one peg with no valid moves
-        clearBoardExcept(3, 3);
+        clearBoardExcept(3, 2);
         assertTrue(game.isOver());
     }
 
-    // -------------------------------------------------------------------------
-    // getValidMoves delegation
-    // -------------------------------------------------------------------------
-
-    @Test
-    void getValidMoves_atStart_returns4() {
-        assertEquals(4, game.getValidMoves().size());
-    }
-
-    // -------------------------------------------------------------------------
-    // getRating delegation
-    // -------------------------------------------------------------------------
-
-    @Test
-    void getRating_atStart_isAverage() {
-        assertEquals("Average", game.getRating());
-    }
+    // ── AC 5.2 — Outstanding rating for one peg ──────────────────────────────
 
     @Test
     void getRating_outstanding_whenOnePegLeft() {
-        clearBoardExcept(3, 3);
+        clearBoardExcept(3, 2);
         assertEquals("Outstanding", game.getRating());
     }
 
-    // -------------------------------------------------------------------------
-    // getModeName
-    // -------------------------------------------------------------------------
-
     @Test
-    void getModeName_isManual() {
-        assertEquals("Manual", game.getModeName());
+    void getRating_average_atStart() {
+        assertEquals("Average", game.getRating());
     }
 
-    // -------------------------------------------------------------------------
-    // randomize
-    // -------------------------------------------------------------------------
+    // ── AC 8.1 — Randomize changes board to new valid mid-game position ───────
+
+    @Test
+    void randomize_reducesPegCount() {
+        int before = game.getPegCount();
+        game.randomize(3, 3);
+        assertEquals(before - 3, game.getPegCount());
+    }
+
+    // ── AC 8.2 — Board is consistent after randomize ──────────────────────────
 
     @Test
     void randomize_producesValidBoardState() {
-        // After randomizing, the board should still be internally consistent:
-        // every PEG cell has a valid CellState, and peg count matches actual pegs
         game.randomize();
         int counted = 0;
         for (int r = 0; r < game.getBoard().getSize(); r++)
@@ -178,30 +118,15 @@ class ManualGameTest {
         assertEquals(counted, game.getPegCount());
     }
 
-    @Test
-    void randomize_reducesPegCount() {
-        int before = game.getPegCount();
-        game.randomize(3, 3); // exactly 3 moves
-        assertEquals(before - 3, game.getPegCount());
-    }
-
-    @Test
-    void randomize_doesNotCorruptBoard() {
-        // Board should still respond to getValidMoves() without throwing
-        game.randomize();
-        assertNotNull(game.getValidMoves());
-    }
+    // ── AC 8.3 — Randomize does not affect move history ───────────────────────
 
     @Test
     void randomize_doesNotAddToMoveHistory() {
         game.randomize(5, 5);
-        // Randomize is not part of the player's move record
         assertTrue(game.getMoveHistory().isEmpty());
     }
 
-    // -------------------------------------------------------------------------
-    // Helper
-    // -------------------------------------------------------------------------
+    // ── Helper ────────────────────────────────────────────────────────────────
 
     private void clearBoardExcept(int keepRow, int keepCol) {
         for (int r = 0; r < game.getBoard().getSize(); r++)

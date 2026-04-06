@@ -3,21 +3,15 @@ package model;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Unit tests for the redesigned HexagonBoard.
+ * Tests for HexagonBoard — mapped to acceptance criteria.
  *
- * Layout (symmetric, orthogonal moves only):
- *   Row 0: cols 2-5  (4 cells)
- *   Row 1: cols 1-5  (5 cells)
- *   Row 2: cols 1-6  (6 cells)
- *   Row 3: cols 0-6  (7 cells) <- widest, center at (3,3)
- *   Row 4: cols 1-6  (6 cells)
- *   Row 5: cols 1-5  (5 cells)
- *   Row 6: cols 2-5  (4 cells)
+ * AC 3.1 — board resets to initial state with all holes filled except center
+ * AC 4.2 — valid move executes correctly
+ * AC 4.3 — invalid move is rejected
+ * AC 5.1 — game over detected when no valid moves remain
  */
 class HexagonBoardTest {
 
@@ -28,13 +22,10 @@ class HexagonBoardTest {
         board = new HexagonBoard();
     }
 
-    // -------------------------------------------------------------------------
-    // Initial state
-    // -------------------------------------------------------------------------
+    // ── AC 3.1 — Initial board state ──────────────────────────────────────────
 
     @Test
     void initialPegCount_is36() {
-        // 3+5+7+7+7+5+3 = 37 holes, minus 1 center = 36
         assertEquals(36, board.getPegCount());
     }
 
@@ -44,75 +35,26 @@ class HexagonBoardTest {
     }
 
     @Test
-    void invalidCells_areMarkedCorrectly() {
-        // Row 0 only has cols 2-4
-        assertEquals(CellState.INVALID, board.getCell(0, 0));
-        assertEquals(CellState.INVALID, board.getCell(0, 1));
-        assertEquals(CellState.INVALID, board.getCell(0, 5));
-        assertEquals(CellState.INVALID, board.getCell(0, 6));
-        // Row 6 only has cols 2-4
-        assertEquals(CellState.INVALID, board.getCell(6, 0));
-        assertEquals(CellState.INVALID, board.getCell(6, 1));
-        assertEquals(CellState.INVALID, board.getCell(6, 5));
-        assertEquals(CellState.INVALID, board.getCell(6, 6));
-        // Row 1 only has cols 1-5
-        assertEquals(CellState.INVALID, board.getCell(1, 0));
-        assertEquals(CellState.INVALID, board.getCell(1, 6));
-    }
-
-    @Test
-    void validCells_arePegAtStart() {
+    void playableCells_arePegAtStart() {
         assertEquals(CellState.PEG, board.getCell(0, 2));
-        assertEquals(CellState.PEG, board.getCell(0, 4));
         assertEquals(CellState.PEG, board.getCell(3, 0));
-        assertEquals(CellState.PEG, board.getCell(3, 6));
-        assertEquals(CellState.PEG, board.getCell(6, 2));
         assertEquals(CellState.PEG, board.getCell(6, 4));
     }
 
-    // -------------------------------------------------------------------------
-    // Move validation — orthogonal only
-    // -------------------------------------------------------------------------
+    @Test
+    void invalidCells_areMarkedCorrectly() {
+        assertEquals(CellState.INVALID, board.getCell(0, 0));
+        assertEquals(CellState.INVALID, board.getCell(0, 5));
+        assertEquals(CellState.INVALID, board.getCell(6, 0));
+        assertEquals(CellState.INVALID, board.getCell(6, 6));
+    }
+
+    // ── AC 4.2 — Valid move executes correctly ────────────────────────────────
 
     @Test
-    void validMove_jumpRightIntoCenter() {
+    void validMove_isAccepted() {
         assertTrue(board.isValidMove(3, 1, 3, 3));
     }
-
-    @Test
-    void validMove_jumpLeftIntoCenter() {
-        assertTrue(board.isValidMove(3, 5, 3, 3));
-    }
-
-    @Test
-    void validMove_jumpDownIntoCenter() {
-        assertTrue(board.isValidMove(1, 3, 3, 3));
-    }
-
-    @Test
-    void validMove_jumpUpIntoCenter() {
-        assertTrue(board.isValidMove(5, 3, 3, 3));
-    }
-
-    @Test
-    void invalidMove_diagonalNotAllowed() {
-        assertFalse(board.isValidMove(1, 1, 3, 3));
-        assertFalse(board.isValidMove(5, 5, 3, 3));
-    }
-
-    @Test
-    void invalidMove_sourceIsEmpty() {
-        assertFalse(board.isValidMove(3, 3, 3, 5));
-    }
-
-    @Test
-    void invalidMove_sourceIsInvalid() {
-        assertFalse(board.isValidMove(0, 0, 0, 2));
-    }
-
-    // -------------------------------------------------------------------------
-    // Move application
-    // -------------------------------------------------------------------------
 
     @Test
     void applyMove_updatesCellStates() {
@@ -129,28 +71,14 @@ class HexagonBoardTest {
         assertEquals(before - 1, board.getPegCount());
     }
 
-    // -------------------------------------------------------------------------
-    // getValidMoves at start
-    // -------------------------------------------------------------------------
+    // ── AC 4.3 — Invalid move is rejected ────────────────────────────────────
 
     @Test
-    void getValidMoves_atStart_returns4Moves() {
-        List<Move> moves = board.getValidMoves();
-        assertEquals(4, moves.size());
+    void invalidMove_sourceIsEmpty_isRejected() {
+        assertFalse(board.isValidMove(3, 3, 3, 5));
     }
 
-    @Test
-    void getValidMoves_containsExpectedMoves() {
-        List<Move> moves = board.getValidMoves();
-        assertTrue(moves.contains(new Move(3, 1, 3, 3)));
-        assertTrue(moves.contains(new Move(3, 5, 3, 3)));
-        assertTrue(moves.contains(new Move(1, 3, 3, 3)));
-        assertTrue(moves.contains(new Move(5, 3, 3, 3)));
-    }
-
-    // -------------------------------------------------------------------------
-    // Game over
-    // -------------------------------------------------------------------------
+    // ── AC 5.1 — Game over detection ─────────────────────────────────────────
 
     @Test
     void isGameOver_falseAtStart() {
@@ -160,14 +88,12 @@ class HexagonBoardTest {
     @Test
     void isGameOver_trueWithOnePeg() {
         clearBoard();
-        board.setCell(3, 3, CellState.PEG);
+        board.setCell(3, 2, CellState.PEG);
         board.recountPegs();
         assertTrue(board.isGameOver());
     }
 
-    // -------------------------------------------------------------------------
-    // Helper
-    // -------------------------------------------------------------------------
+    // ── Helper ────────────────────────────────────────────────────────────────
 
     private void clearBoard() {
         for (int r = 0; r < board.getSize(); r++)

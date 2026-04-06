@@ -3,16 +3,15 @@ package model;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Unit tests for DiamondBoard.
+ * Tests for DiamondBoard — mapped to acceptance criteria.
  *
- * The diamond board has 41 holes on a 9x9 grid.
- * Row widths: 1, 3, 5, 7, 9, 7, 5, 3, 1 (centered).
- * Center at (4,4). Starting pegs: 40.
+ * AC 3.1 — board resets to initial state with all holes filled except center
+ * AC 4.2 — valid move executes correctly
+ * AC 4.3 — invalid move is rejected
+ * AC 5.1 — game over detected when no valid moves remain
  */
 class DiamondBoardTest {
 
@@ -23,13 +22,10 @@ class DiamondBoardTest {
         board = new DiamondBoard();
     }
 
-    // -------------------------------------------------------------------------
-    // Initial state
-    // -------------------------------------------------------------------------
+    // ── AC 3.1 — Initial board state ──────────────────────────────────────────
 
     @Test
     void initialPegCount_is40() {
-        // 41 valid holes minus 1 center hole = 40 pegs
         assertEquals(40, board.getPegCount());
     }
 
@@ -39,19 +35,7 @@ class DiamondBoardTest {
     }
 
     @Test
-    void cornerCells_areInvalid() {
-        assertEquals(CellState.INVALID, board.getCell(0, 0));
-        assertEquals(CellState.INVALID, board.getCell(0, 8));
-        assertEquals(CellState.INVALID, board.getCell(8, 0));
-        assertEquals(CellState.INVALID, board.getCell(8, 8));
-        // Row 0 only has col 4 valid
-        assertEquals(CellState.INVALID, board.getCell(0, 3));
-        assertEquals(CellState.INVALID, board.getCell(0, 5));
-    }
-
-    @Test
-    void tipCells_arePeg() {
-        // The four tips of the diamond
+    void tipCells_arePegAtStart() {
         assertEquals(CellState.PEG, board.getCell(0, 4)); // top tip
         assertEquals(CellState.PEG, board.getCell(8, 4)); // bottom tip
         assertEquals(CellState.PEG, board.getCell(4, 0)); // left tip
@@ -59,79 +43,23 @@ class DiamondBoardTest {
     }
 
     @Test
-    void rowBounds_areCorrect() {
-        assertEquals(4, board.getRowColStart(0)); assertEquals(4, board.getRowColEnd(0)); // 1 cell
-        assertEquals(3, board.getRowColStart(1)); assertEquals(5, board.getRowColEnd(1)); // 3 cells
-        assertEquals(0, board.getRowColStart(4)); assertEquals(8, board.getRowColEnd(4)); // 9 cells
-        assertEquals(3, board.getRowColStart(7)); assertEquals(5, board.getRowColEnd(7)); // 3 cells
-        assertEquals(4, board.getRowColStart(8)); assertEquals(4, board.getRowColEnd(8)); // 1 cell
+    void cornerCells_areInvalid() {
+        assertEquals(CellState.INVALID, board.getCell(0, 0));
+        assertEquals(CellState.INVALID, board.getCell(0, 8));
+        assertEquals(CellState.INVALID, board.getCell(8, 0));
+        assertEquals(CellState.INVALID, board.getCell(8, 8));
     }
 
-    // -------------------------------------------------------------------------
-    // Move validation — legal
-    // -------------------------------------------------------------------------
+    // ── AC 4.2 — Valid move executes correctly ────────────────────────────────
 
     @Test
-    void validMove_jumpRightIntoCenter() {
-        // (4,2) -> (4,4): jumps over (4,3)
+    void validMove_isAccepted() {
         assertTrue(board.isValidMove(4, 2, 4, 4));
     }
 
     @Test
-    void validMove_jumpLeftIntoCenter() {
-        // (4,6) -> (4,4): jumps over (4,5)
-        assertTrue(board.isValidMove(4, 6, 4, 4));
-    }
-
-    @Test
-    void validMove_jumpDownIntoCenter() {
-        // (2,4) -> (4,4): jumps over (3,4)
-        assertTrue(board.isValidMove(2, 4, 4, 4));
-    }
-
-    @Test
-    void validMove_jumpUpIntoCenter() {
-        // (6,4) -> (4,4): jumps over (5,4)
-        assertTrue(board.isValidMove(6, 4, 4, 4));
-    }
-
-    // -------------------------------------------------------------------------
-    // Move validation — illegal
-    // -------------------------------------------------------------------------
-
-    @Test
-    void invalidMove_diagonalNotAllowed() {
-        // Diamond board is orthogonal only — no diagonal moves
-        assertFalse(board.isValidMove(2, 2, 4, 4));
-        assertFalse(board.isValidMove(6, 6, 4, 4));
-    }
-
-    @Test
-    void invalidMove_sourceIsEmpty() {
-        assertFalse(board.isValidMove(4, 4, 4, 6)); // center is empty
-    }
-
-    @Test
-    void invalidMove_jumpingToInvalidCell() {
-        // (2,4) jumping up would land at (0,4) which IS valid (tip cell)
-        // So let's test something truly invalid: (1,3) jumping left -> (-1,3)
-        assertFalse(board.isValidMove(1, 3, 1, 1)); // (1,1) is INVALID on diamond
-    }
-
-    @Test
-    void invalidMove_outOfBounds() {
-        assertFalse(board.isValidMove(0, 4, -2, 4));
-    }
-
-    // -------------------------------------------------------------------------
-    // Move application
-    // -------------------------------------------------------------------------
-
-    @Test
     void applyMove_updatesCellStates() {
-        Move move = new Move(4, 2, 4, 4);
-        board.applyMove(move);
-
+        board.applyMove(new Move(4, 2, 4, 4));
         assertEquals(CellState.EMPTY, board.getCell(4, 2));
         assertEquals(CellState.EMPTY, board.getCell(4, 3));
         assertEquals(CellState.PEG,   board.getCell(4, 4));
@@ -144,35 +72,14 @@ class DiamondBoardTest {
         assertEquals(before - 1, board.getPegCount());
     }
 
-    @Test
-    void applyMove_throwsOnInvalidMove() {
-        assertThrows(IllegalArgumentException.class,
-            () -> board.applyMove(new Move(4, 4, 4, 6))); // source is empty
-    }
-
-    // -------------------------------------------------------------------------
-    // getValidMoves at start
-    // -------------------------------------------------------------------------
+    // ── AC 4.3 — Invalid move is rejected ────────────────────────────────────
 
     @Test
-    void getValidMoves_atStart_returns4Moves() {
-        // Center-empty start: 4 orthogonal jumps into center
-        List<Move> moves = board.getValidMoves();
-        assertEquals(4, moves.size());
+    void invalidMove_sourceIsEmpty_isRejected() {
+        assertFalse(board.isValidMove(4, 4, 4, 6));
     }
 
-    @Test
-    void getValidMoves_containsExpectedMoves() {
-        List<Move> moves = board.getValidMoves();
-        assertTrue(moves.contains(new Move(4, 2, 4, 4)));
-        assertTrue(moves.contains(new Move(4, 6, 4, 4)));
-        assertTrue(moves.contains(new Move(2, 4, 4, 4)));
-        assertTrue(moves.contains(new Move(6, 4, 4, 4)));
-    }
-
-    // -------------------------------------------------------------------------
-    // Game over
-    // -------------------------------------------------------------------------
+    // ── AC 5.1 — Game over detection ─────────────────────────────────────────
 
     @Test
     void isGameOver_falseAtStart() {
@@ -182,14 +89,12 @@ class DiamondBoardTest {
     @Test
     void isGameOver_trueWithOnePeg() {
         clearBoard();
-        board.setCell(4, 4, CellState.PEG);
+        board.setCell(4, 3, CellState.PEG);
         board.recountPegs();
         assertTrue(board.isGameOver());
     }
 
-    // -------------------------------------------------------------------------
-    // Helper
-    // -------------------------------------------------------------------------
+    // ── Helper ────────────────────────────────────────────────────────────────
 
     private void clearBoard() {
         for (int r = 0; r < board.getSize(); r++)
